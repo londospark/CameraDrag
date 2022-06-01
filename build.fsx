@@ -1,13 +1,15 @@
 // include Fake lib
+#if FAKE
 #r "paket:
 storage: packages
 
+nuget FAKE prerelease
 nuget FSharp.Core 4.7.0.0
 nuget Fake.IO.FileSystem
 nuget Fake.Core.Target
 nuget Fake.DotNet.Cli
 nuget Fake.DotNet.MSBuild //"
-
+#endif
 #if !FAKE
 #load "./.fake/build.fsx/intellisense.fsx"
 #endif
@@ -19,8 +21,7 @@ open Fake.IO
 
 let buildDir = "./Build/"
 
-let projects =
-    (!! "./src/*.csproj") :> seq<string> |> List.ofSeq
+let projects = (!! "./src/*.csproj") :> seq<string> |> List.ofSeq
 
 let modName =
     match projects with
@@ -49,36 +50,25 @@ let installFolder =
 
 Target.create "Clean" (fun _ -> Shell.cleanDir buildDir)
 
-Target.create
-    "Restore"
-    (fun _ ->
-        let projects = !! "./src/*.csproj"
+Target.create "Restore" (fun _ ->
+    let projects = !! "./src/*.csproj"
 
-        for project in projects do
-            DotNet.restore (fun _ -> DotNet.RestoreOptions.Create()) (project))
+    for project in projects do
+        DotNet.restore (fun _ -> DotNet.RestoreOptions.Create()) (project))
 
-Target.create
-    "Build"
-    (fun _ ->
-        DotNet.build
-            (fun x -> {x with OutputPath = (Some "./Build")})
-            (sprintf "src/%s" modName)
-        |> ignore )
+Target.create "Build" (fun _ ->
+    DotNet.build (fun x -> { x with OutputPath = (Some "./Build") }) (sprintf "src/%s" modName)
+    |> ignore)
 
-Target.create
-    "Install"
-    (fun _ ->
-        Shell.mkdir (installFolder)
-        Shell.copyFile installFolder (Path.combine buildDir (Path.changeExtension ".dll" modName))
-        Shell.copyFile installFolder (Path.combine buildDir (Path.changeExtension ".pdb" modName)))
+Target.create "Install" (fun _ ->
+    Shell.mkdir (installFolder)
+    Shell.copyFile installFolder (Path.combine buildDir (Path.changeExtension ".dll" modName))
+    Shell.copyFile installFolder (Path.combine buildDir (Path.changeExtension ".pdb" modName)))
 
 open Fake.Core.TargetOperators
 
 // Dependencies
-"Restore"
-    ==> "Clean"
-    ==> "Build"
-    ==> "Install"
+"Restore" ==> "Clean" ==> "Build" ==> "Install"
 
 // start build
 Target.runOrDefault "Install"
